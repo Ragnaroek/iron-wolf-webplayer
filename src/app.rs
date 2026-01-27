@@ -1,5 +1,5 @@
 use eframe::egui;
-use egui::{Color32, Frame, Pos2, Stroke};
+use egui::{Color32, Frame, Pos2, RichText, Stroke};
 use iw::config::default_iw_config;
 use iw::start::iw_start;
 use iw::web::{WebLoader, load_shareware_data};
@@ -10,13 +10,20 @@ pub struct IWApp {
 }
 
 impl IWApp {
-    pub fn new(_cc: &eframe::CreationContext<'_>) -> IWApp {
+    pub fn new(cc: &eframe::CreationContext<'_>) -> IWApp {
+        let mut fonts = egui::FontDefinitions::default();
+        egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
+
+        cc.egui_ctx.set_fonts(fonts);
+
         IWApp { is_expanded: false }
     }
 }
 
+const MENUE_MIN_WDITH: f32 = 50.0;
 const MENUE_BORDER_WIDTH: f32 = 2.0;
-const MENU_BORDER_COLOUR_BOTTOM_RIGHT: Color32 = egui::Color32::from_rgb(0xD4, 0, 0);
+const MENU_BORDER_COLOUR_BOTTOM_RIGHT: Color32 = egui::Color32::from_rgb(0xD4, 0x00, 0x00);
+const ICON_COLOUR: Color32 = egui::Color32::from_rgb(0xFC, 0xFC, 0x54);
 
 impl eframe::App for IWApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
@@ -27,9 +34,8 @@ impl eframe::App for IWApp {
             animation_speed,
         );
 
-        let min_width = 50.0;
         let max_width = 280.0;
-        let current_width = min_width + (max_width - min_width) * t;
+        let current_width = MENUE_MIN_WDITH + (max_width - MENUE_MIN_WDITH) * t;
 
         egui::SidePanel::right("wolf_sidebar")
             .resizable(false)
@@ -38,21 +44,18 @@ impl eframe::App for IWApp {
                 egui::Frame::NONE
                     .fill(egui::Color32::from_rgb(0x53, 0, 0))
                     .inner_margin(5.0)
-                    // 0xD4 for right and down
                     .stroke(Stroke::new(
                         MENUE_BORDER_WIDTH,
                         egui::Color32::from_rgb(0x70, 0, 0),
                     )),
-            ) // Dunkler Rahmen
+            )
             .show(ctx, |ui| {
                 ui.vertical_centered(|ui| {
                     let icon = if self.is_expanded { "▶" } else { "◀" };
                     if ui
                         .add(
-                            egui::Button::new(
-                                egui::RichText::new(icon).color(egui::Color32::WHITE),
-                            )
-                            .frame(false),
+                            egui::Button::new(RichText::new(icon).color(egui::Color32::WHITE))
+                                .frame(false),
                         )
                         .clicked()
                     {
@@ -62,7 +65,7 @@ impl eframe::App for IWApp {
 
                 ui.add_space(20.0);
 
-                render_animated_item(ui, "💾", "SAVE GAME", t);
+                render_animated_item(ui, egui_phosphor::regular::FLOPPY_DISK, "SAVE GAME", t);
 
                 let rect = ui.clip_rect();
                 let painter = ui.painter();
@@ -89,17 +92,34 @@ impl eframe::App for IWApp {
             .show(ctx, |ui| {
                 ui.painter()
                     .rect_filled(ui.max_rect(), 0.0, egui::Color32::from_rgb(0x8C, 0, 0));
-                if ui.button("Start Playing").clicked() {
-                    spawn_local(async {
-                        let mut shareware_loader = WebLoader::new_shareware();
-                        let iw_config = default_iw_config().expect("default config");
-                        load_shareware_data(&mut shareware_loader)
-                            .await
-                            .expect("load shareware data");
-                        iw_start(shareware_loader, iw_config).expect("iw start");
-                        log::debug!("started!");
-                    });
-                }
+
+                ui.add_space(ui.max_rect().bottom() / 2.0 + 480.0 / 2.0);
+                ui.horizontal_centered(|ui| {
+                    ui.add_space(MENUE_MIN_WDITH);
+                    ui.vertical_centered(|ui| {
+                        let play_response = ui.label(
+                            RichText::new(egui_phosphor::regular::PLAY)
+                                .size(30.0)
+                                .color(ICON_COLOUR),
+                        );
+
+                        if play_response.clicked() {
+                            spawn_local(async {
+                                let mut shareware_loader = WebLoader::new_shareware();
+                                let iw_config = default_iw_config().expect("default config");
+                                load_shareware_data(&mut shareware_loader)
+                                    .await
+                                    .expect("load shareware data");
+                                iw_start(shareware_loader, iw_config).expect("iw start");
+                            });
+                        }
+                        let label_response =
+                            ui.label(RichText::new("Play Shareware").color(ICON_COLOUR));
+                        if play_response.hovered() || label_response.hovered() {
+                            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                        }
+                    })
+                });
             });
     }
 }
@@ -107,11 +127,7 @@ impl eframe::App for IWApp {
 fn render_animated_item(ui: &mut egui::Ui, icon: &str, label: &str, t: f32) {
     ui.horizontal(|ui| {
         ui.add_space(5.0);
-        ui.label(
-            egui::RichText::new(icon)
-                .size(24.0)
-                .color(egui::Color32::from_rgb(85, 255, 85)),
-        );
+        ui.label(RichText::new(icon).size(24.0).color(ICON_COLOUR));
 
         if t > 0.1 {
             ui.scope(|ui| {
@@ -121,7 +137,7 @@ fn render_animated_item(ui: &mut egui::Ui, icon: &str, label: &str, t: f32) {
 
                 ui.add_space(10.0);
 
-                let text = egui::RichText::new(label)
+                let text = RichText::new(label)
                     .strong()
                     .color(egui::Color32::WHITE.linear_multiply(opacity));
 
