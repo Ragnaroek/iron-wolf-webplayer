@@ -58,7 +58,6 @@
                 transform: translate(-50%, -50%);
                 pointer-events: none; /* Allow clicks to pass through */
                 z-index: 100;
-                border: 1px solid black;
                 width: 640px;
                 height: 400px;
             }
@@ -112,6 +111,18 @@
         <canvas id="vga"></canvas>
         <canvas id="iw_player_canvas"></canvas>
         <input type="file" id="hidden_file_input" style="display: none" />
+
+        <script>
+            const canvas = document.getElementById("vga");
+            const ctx = canvas.getContext("2d");
+
+            const backgroundImage = new Image();
+            backgroundImage.src = "splash_screen.png";
+
+            backgroundImage.onload = function () {
+                ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
+            };
+        </script>
 
         <script>
             // We disable caching during development so that we always view the latest version.

@@ -1,12 +1,15 @@
 use eframe::egui;
 use egui::{Color32, Frame, Pos2, RichText, Stroke};
+use egui_phosphor::regular::ARROW_DOWN;
 use iw::config::default_iw_config;
 use iw::start::iw_start;
 use iw::web::{WebLoader, load_shareware_data};
 use wasm_bindgen_futures::spawn_local;
+use web_sys::{KeyboardEvent, window};
 
 pub struct IWApp {
     is_expanded: bool,
+    playing: bool,
 }
 
 impl IWApp {
@@ -16,7 +19,10 @@ impl IWApp {
 
         cc.egui_ctx.set_fonts(fonts);
 
-        IWApp { is_expanded: false }
+        IWApp {
+            is_expanded: false,
+            playing: false,
+        }
     }
 }
 
@@ -27,6 +33,25 @@ const ICON_COLOUR: Color32 = egui::Color32::from_rgb(0xFC, 0xFC, 0x54);
 
 impl eframe::App for IWApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        if self.playing {
+            if let Some(window) = window() {
+                if let Some(document) = window.document() {
+                    let input = ctx.input(|i| i.clone());
+                    for event in &input.events {
+                        if let egui::Event::Key { key, .. } = event {
+                            if *key == egui::Key::ArrowDown {
+                                let doc_event =
+                                    web_sys::KeyboardEvent::new("keydown").expect("event");
+                                doc_event.init_keyboard_event_with_bubbles_arg_and_cancelable_arg_and_view_arg_and_key_arg("keydown", false, false, None, "ArrowDown").expect("key event");
+                                document.dispatch_event(&doc_event).expect("event dispatch");
+                                log::debug!("### event = {:?}", doc_event);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         let animation_speed = 0.25;
         let t = ctx.animate_bool_with_time(
             egui::Id::new("sidebar_anim"),
@@ -104,6 +129,7 @@ impl eframe::App for IWApp {
                         );
 
                         if play_response.clicked() {
+                            self.playing = true; // TODO set this after the game was successfully started!
                             spawn_local(async {
                                 let mut shareware_loader = WebLoader::new_shareware();
                                 let iw_config = default_iw_config().expect("default config");
