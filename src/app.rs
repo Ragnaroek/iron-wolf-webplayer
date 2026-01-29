@@ -136,27 +136,30 @@ impl eframe::App for IWApp {
                 ui.horizontal_centered(|ui| {
                     ui.add_space(MENUE_MIN_WDITH);
                     ui.vertical_centered(|ui| {
-                        let play_response = ui.label(
-                            RichText::new(egui_phosphor::regular::PLAY)
-                                .size(30.0)
-                                .color(ICON_COLOUR),
-                        );
+                        if !self.playing {
+                            let play_response = ui.label(
+                                RichText::new(egui_phosphor::regular::PLAY)
+                                    .size(30.0)
+                                    .color(ICON_COLOUR),
+                            );
 
-                        if play_response.clicked() {
-                            self.playing = true; // TODO set this after the game was successfully started!
-                            spawn_local(async {
-                                let mut shareware_loader = WebLoader::new_shareware();
-                                let iw_config = default_iw_config().expect("default config");
-                                load_shareware_data(&mut shareware_loader)
-                                    .await
-                                    .expect("load shareware data");
-                                iw_start(shareware_loader, iw_config).expect("iw start");
-                            });
-                        }
-                        let label_response =
-                            ui.label(RichText::new("Play Shareware").color(ICON_COLOUR));
-                        if play_response.hovered() || label_response.hovered() {
-                            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                            if play_response.clicked() {
+                                self.playing = true; // TODO set this after the game was successfully started!
+                                spawn_local(async {
+                                    let mut shareware_loader = WebLoader::new_shareware();
+                                    let iw_config = default_iw_config().expect("default config");
+                                    load_shareware_data(&mut shareware_loader)
+                                        .await
+                                        .expect("load shareware data");
+                                    iw_start(shareware_loader, iw_config).expect("iw start");
+                                });
+                            }
+
+                            let label_response =
+                                ui.label(RichText::new("Play Shareware").color(ICON_COLOUR));
+                            if play_response.hovered() || label_response.hovered() {
+                                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                            }
                         }
                     })
                 });
