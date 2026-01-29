@@ -28,6 +28,8 @@ impl IWApp {
 
 const MENUE_MIN_WDITH: f32 = 50.0;
 const MENUE_BORDER_WIDTH: f32 = 2.0;
+
+const BACKGROUND_COLOR: Color32 = egui::Color32::from_rgb(0x88, 0, 0);
 const MENU_BORDER_COLOUR_BOTTOM_RIGHT: Color32 = egui::Color32::from_rgb(0xD4, 0x00, 0x00);
 const ICON_COLOUR: Color32 = egui::Color32::from_rgb(0xFC, 0xFC, 0x54);
 
@@ -38,14 +40,26 @@ impl eframe::App for IWApp {
                 if let Some(document) = window.document() {
                     let input = ctx.input(|i| i.clone());
                     for event in &input.events {
-                        if let egui::Event::Key { key, .. } = event {
-                            if *key == egui::Key::ArrowDown {
-                                let doc_event =
-                                    web_sys::KeyboardEvent::new("keydown").expect("event");
-                                doc_event.init_keyboard_event_with_bubbles_arg_and_cancelable_arg_and_view_arg_and_key_arg("keydown", false, false, None, "ArrowDown").expect("key event");
-                                document.dispatch_event(&doc_event).expect("event dispatch");
-                                log::debug!("### event = {:?}", doc_event);
-                            }
+                        if let egui::Event::Key {
+                            key,
+                            pressed,
+                            modifiers,
+                            ..
+                        } = event
+                        {
+                            let init = web_sys::KeyboardEventInit::new();
+                            init.set_key(egui_key_to_event_key(key));
+                            init.set_ctrl_key(modifiers.ctrl);
+                            init.set_alt_key(modifiers.alt);
+                            init.set_shift_key(modifiers.shift);
+                            init.set_bubbles(true);
+                            init.set_cancelable(true);
+
+                            let event_type = if *pressed { "keydown" } else { "keyup" };
+                            let event =
+                                KeyboardEvent::new_with_keyboard_event_init_dict(event_type, &init)
+                                    .expect("event");
+                            document.dispatch_event(&event).expect("event dispatch");
                         }
                     }
                 }
@@ -116,7 +130,7 @@ impl eframe::App for IWApp {
             .frame(Frame::NONE)
             .show(ctx, |ui| {
                 ui.painter()
-                    .rect_filled(ui.max_rect(), 0.0, egui::Color32::from_rgb(0x8C, 0, 0));
+                    .rect_filled(ui.max_rect(), 0.0, BACKGROUND_COLOR);
 
                 ui.add_space(ui.max_rect().bottom() / 2.0 + 480.0 / 2.0);
                 ui.horizontal_centered(|ui| {
@@ -147,6 +161,19 @@ impl eframe::App for IWApp {
                     })
                 });
             });
+    }
+}
+
+// unfortunately egui does not translate with name() to valid
+// js event key names. Some of them have to be corrected.
+fn egui_key_to_event_key(key: &egui::Key) -> &str {
+    match key {
+        egui::Key::ArrowDown => "ArrowDown",
+        egui::Key::ArrowLeft => "ArrowLeft",
+        egui::Key::ArrowRight => "ArrowRight",
+        egui::Key::ArrowUp => "ArrowUp",
+        egui::Key::Space => " ",
+        other => other.name(),
     }
 }
 
