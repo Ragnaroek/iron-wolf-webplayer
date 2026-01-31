@@ -60,6 +60,8 @@
                 z-index: 100;
                 width: 640px;
                 height: 400px;
+                image-rendering: pixelated;
+                image-rendering: crisp-edges;
             }
 
             .centered {
@@ -115,6 +117,8 @@
         <script>
             const canvas = document.getElementById("vga");
             const ctx = canvas.getContext("2d");
+            ctx.imageSmoothingEnabled = false;
+            ctx.mozImageSmoothingEnabled = false;
 
             const backgroundImage = new Image();
             backgroundImage.src = "splash_screen.png";
