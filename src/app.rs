@@ -1,11 +1,16 @@
 use eframe::egui;
 use egui::{Color32, Frame, Pos2, RichText, Stroke};
-use egui_phosphor::regular::ARROW_DOWN;
 use iw::config::default_iw_config;
 use iw::start::iw_start;
 use iw::web::{WebLoader, load_shareware_data};
+use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
-use web_sys::{KeyboardEvent, window};
+use web_sys::{HtmlElement, KeyboardEvent, window};
+
+const KEYDOWN_EVENT: &str = "keydown";
+const KEYUP_EVENT: &str = "keyup";
+const CONTROL_KEY: &str = "Control";
+const KEYUP_DELAY_MS: i32 = 15;
 
 pub struct IWApp {
     is_expanded: bool,
@@ -16,13 +21,101 @@ impl IWApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> IWApp {
         let mut fonts = egui::FontDefinitions::default();
         egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
-
         cc.egui_ctx.set_fonts(fonts);
+
+        register_ctrl_handler();
 
         IWApp {
             is_expanded: false,
             playing: false,
         }
+    }
+
+    fn forward_key_events(&self, ctx: &egui::Context) {
+        if let Some(window) = window() {
+            if let Some(document) = window.document() {
+                let input = ctx.input(|i| i.clone());
+                for event in &input.events {
+                    if let egui::Event::Key { key, pressed, .. } = event {
+                        let init = web_sys::KeyboardEventInit::new();
+                        init.set_key(egui_key_to_event_key(key));
+                        init.set_bubbles(true);
+                        init.set_cancelable(true);
+
+                        let event_type = if *pressed { KEYDOWN_EVENT } else { KEYUP_EVENT };
+                        let event =
+                            KeyboardEvent::new_with_keyboard_event_init_dict(event_type, &init)
+                                .expect("event");
+
+                        let vga = document
+                            .get_element_by_id("vga")
+                            .expect("Element not found");
+
+                        vga.dispatch_event(&event).expect("event dispatch");
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn register_ctrl_handler() {
+    {
+        let closure_keydown = Closure::wrap(Box::new(|e: web_sys::KeyboardEvent| {
+            if e.ctrl_key() && !e.shift_key() && !e.alt_key() && !e.meta_key() {
+                {
+                    let init = web_sys::KeyboardEventInit::new();
+                    init.set_ctrl_key(true);
+                    init.set_key(CONTROL_KEY);
+                    let event =
+                        KeyboardEvent::new_with_keyboard_event_init_dict(KEYDOWN_EVENT, &init)
+                            .expect("event");
+                    window()
+                        .unwrap()
+                        .document()
+                        .unwrap()
+                        .get_element_by_id("vga")
+                        .expect("Element not found")
+                        .dispatch_event(&event)
+                        .expect("event dispatch");
+                }
+
+                let closure = Closure::once(move || {
+                    let init = web_sys::KeyboardEventInit::new();
+                    init.set_ctrl_key(true);
+                    init.set_key(CONTROL_KEY);
+                    let event =
+                        KeyboardEvent::new_with_keyboard_event_init_dict(KEYUP_EVENT, &init)
+                            .expect("event");
+                    window()
+                        .unwrap()
+                        .document()
+                        .unwrap()
+                        .get_element_by_id("vga")
+                        .expect("Element not found")
+                        .dispatch_event(&event)
+                        .expect("event dispatch");
+                });
+                window()
+                    .unwrap()
+                    .set_timeout_with_callback_and_timeout_and_arguments_0(
+                        closure.as_ref().unchecked_ref(),
+                        KEYUP_DELAY_MS,
+                    )
+                    .unwrap();
+                closure.forget();
+            }
+        }) as Box<dyn FnMut(_)>);
+        window()
+            .unwrap()
+            .document()
+            .unwrap()
+            .add_event_listener_with_callback(
+                KEYDOWN_EVENT,
+                closure_keydown.as_ref().unchecked_ref(),
+            )
+            .unwrap();
+        closure_keydown.forget();
     }
 }
 
@@ -35,36 +128,7 @@ const ICON_COLOUR: Color32 = egui::Color32::from_rgb(0xFC, 0xFC, 0x54);
 
 impl eframe::App for IWApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        if self.playing {
-            if let Some(window) = window() {
-                if let Some(document) = window.document() {
-                    let input = ctx.input(|i| i.clone());
-                    for event in &input.events {
-                        if let egui::Event::Key {
-                            key,
-                            pressed,
-                            modifiers,
-                            ..
-                        } = event
-                        {
-                            let init = web_sys::KeyboardEventInit::new();
-                            init.set_key(egui_key_to_event_key(key));
-                            init.set_ctrl_key(modifiers.ctrl);
-                            init.set_alt_key(modifiers.alt);
-                            init.set_shift_key(modifiers.shift);
-                            init.set_bubbles(true);
-                            init.set_cancelable(true);
-
-                            let event_type = if *pressed { "keydown" } else { "keyup" };
-                            let event =
-                                KeyboardEvent::new_with_keyboard_event_init_dict(event_type, &init)
-                                    .expect("event");
-                            document.dispatch_event(&event).expect("event dispatch");
-                        }
-                    }
-                }
-            }
-        }
+        self.forward_key_events(ctx);
 
         let animation_speed = 0.25;
         let t = ctx.animate_bool_with_time(
@@ -90,7 +154,7 @@ impl eframe::App for IWApp {
             )
             .show(ctx, |ui| {
                 ui.vertical_centered(|ui| {
-                    let icon = if self.is_expanded { "▶" } else { "◀" };
+                    let icon = if self.is_expanded { "▶" } else { "◀   " };
                     if ui
                         .add(
                             egui::Button::new(RichText::new(icon).color(egui::Color32::WHITE))
@@ -145,6 +209,16 @@ impl eframe::App for IWApp {
 
                             if play_response.clicked() {
                                 self.playing = true; // TODO set this after the game was successfully started!
+                                let window = window().expect("No window object found");
+                                let document = window.document().expect("No document object found");
+
+                                let element = document
+                                    .get_element_by_id("vga")
+                                    .expect("Element not found");
+                                if let Some(html_element) = element.dyn_ref::<HtmlElement>() {
+                                    html_element.focus().expect("Failed to focus element");
+                                }
+
                                 spawn_local(async {
                                     let mut shareware_loader = WebLoader::new_shareware();
                                     let iw_config = default_iw_config().expect("default config");
