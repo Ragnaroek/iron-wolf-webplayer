@@ -1,8 +1,9 @@
 use eframe::egui;
 use egui::{Color32, Frame, Pos2, RichText, Stroke};
 use iw::config::default_iw_config;
+use iw::loader::Loader;
 use iw::start::iw_start;
-use iw::web::{WebLoader, load_shareware_data};
+use iw::web::load_shareware_data;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::{HtmlElement, KeyboardEvent, window};
@@ -169,6 +170,18 @@ impl eframe::App for IWApp {
                 ui.add_space(20.0);
 
                 render_animated_item(ui, egui_phosphor::regular::FLOPPY_DISK, "SAVE GAME", t);
+                render_animated_item(ui, egui_phosphor::regular::UPLOAD_SIMPLE, "UPLOAD", t);
+                if self.is_expanded {
+                    file_upload_status(ui, "AUDIOHED.WL1", true);
+                    file_upload_status(ui, "AUDIOT.WL1", true);
+                    file_upload_status(ui, "CONFIG.WL1", true);
+                    file_upload_status(ui, "GAMEMAPS.WL1", true);
+                    file_upload_status(ui, "MAPHEAD.WL1", true);
+                    file_upload_status(ui, "VGADICT.WL1", true);
+                    file_upload_status(ui, "VGAGRAPH.WL1", true);
+                    file_upload_status(ui, "VGAHEAD.WL1", true);
+                    file_upload_status(ui, "VSWAP.WL1", true);
+                }
 
                 let rect = ui.clip_rect();
                 let painter = ui.painter();
@@ -198,7 +211,7 @@ impl eframe::App for IWApp {
 
                 ui.add_space(ui.max_rect().bottom() / 2.0 + 480.0 / 2.0);
                 ui.horizontal_centered(|ui| {
-                    ui.add_space(MENUE_MIN_WDITH);
+                    ui.add_space(current_width); // to keep the play button centred
                     ui.vertical_centered(|ui| {
                         if !self.playing {
                             let play_response = ui.label(
@@ -220,7 +233,7 @@ impl eframe::App for IWApp {
                                 }
 
                                 spawn_local(async {
-                                    let mut shareware_loader = WebLoader::new_shareware();
+                                    let mut shareware_loader = Loader::new_shareware();
                                     let iw_config = default_iw_config().expect("default config");
                                     load_shareware_data(&mut shareware_loader)
                                         .await
@@ -229,16 +242,40 @@ impl eframe::App for IWApp {
                                 });
                             }
 
-                            let label_response =
-                                ui.label(RichText::new("Play Shareware").color(ICON_COLOUR));
-                            if play_response.hovered() || label_response.hovered() {
+                            if play_response.hovered() {
                                 ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
                             }
+
+                            ui.label(
+                                RichText::new("(Shareware Version)")
+                                    .size(10.0)
+                                    .color(ICON_COLOUR),
+                            );
                         }
                     })
                 });
             });
     }
+}
+
+fn file_upload_status(ui: &mut egui::Ui, file_name: &str, present: bool) {
+    ui.horizontal(|ui| {
+        ui.add_space(25.0);
+        if present {
+            ui.label(
+                RichText::new(egui_phosphor::regular::CHECK_FAT)
+                    .size(16.0)
+                    .color(ICON_COLOUR),
+            );
+        } else {
+            ui.label(
+                RichText::new(egui_phosphor::regular::X)
+                    .size(16.0)
+                    .color(ICON_COLOUR),
+            );
+        }
+        ui.label(RichText::new(file_name).color(ICON_COLOUR));
+    });
 }
 
 // unfortunately egui does not translate with name() to valid
