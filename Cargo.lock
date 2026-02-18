@@ -1585,6 +1585,7 @@ dependencies = [
  "gloo-net",
  "image",
  "iw",
+ "js-sys",
  "log",
  "poll-promise",
  "rfd",
