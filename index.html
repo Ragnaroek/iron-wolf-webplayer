@@ -6,7 +6,7 @@
 
         <link data-trunk rel="copy-dir" href="public" data-target-path="" />
 
-        <link rel="icon" href="/public/favicon.ico" type="image/x-icon" />
+        <link rel="icon" href="/favicon.ico" type="image/x-icon" />
 
         <title>Iron-Wolf</title>
         <style>
@@ -124,13 +124,22 @@
             backgroundImage.src = "splash_screen.png";
 
             backgroundImage.onload = function () {
-                ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
+                ctx.drawImage(
+                    backgroundImage,
+                    0,
+                    0,
+                    canvas.width,
+                    canvas.height,
+                );
             };
         </script>
 
         <script>
             // We disable caching during development so that we always view the latest version.
-            if ("serviceWorker" in navigator && window.location.hash !== "#dev") {
+            if (
+                "serviceWorker" in navigator &&
+                window.location.hash !== "#dev"
+            ) {
                 window.addEventListener("load", function () {
                     navigator.serviceWorker.register("readstack.js");
                 });
