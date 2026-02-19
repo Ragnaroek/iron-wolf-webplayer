@@ -1,5 +1,5 @@
 use eframe::egui;
-use egui::{Color32, Frame, Pos2, RichText, Stroke};
+use egui::{Color32, Frame, Pos2, Rect, RichText, Stroke};
 use iw::config::default_iw_config;
 use iw::loader::Loader;
 use iw::start::iw_start;
@@ -174,6 +174,8 @@ pub struct IWApp {
 
     file_upload_promise: Option<Promise<Vec<FileUpload>>>,
     upload: UploadState,
+
+    confirm_reset: Option<Rect>,
 }
 
 impl eframe::App for IWApp {
@@ -219,8 +221,8 @@ impl eframe::App for IWApp {
 
                 ui.add_space(20.0);
 
-                render_savegame_download(ui, egui_phosphor::regular::FLOPPY_DISK, t);
-                self.render_file_upload(ui, egui_phosphor::regular::UPLOAD_SIMPLE, "UPLOAD", t);
+                render_savegame_download(ui, t);
+                self.render_file_upload(ui, t);
                 if self.is_expanded {
                     if let Some(files) = &self.upload.files {
                         file_upload_status(
@@ -366,6 +368,31 @@ impl eframe::App for IWApp {
                     })
                 });
             });
+
+        if let Some(pos) = self.confirm_reset {
+            let dialog_pos = egui::pos2(pos.left(), pos.bottom() + 50.0);
+            egui::Window::new("Confirm reset")
+                .collapsible(false)
+                .resizable(false)
+                .pivot(egui::Align2::CENTER_CENTER)
+                .fixed_pos(dialog_pos)
+                .show(ctx, |ui| {
+                    ui.label("Delete all uploaded data and reset to shareware?");
+
+                    ui.horizontal(|ui| {
+                        if ui.button("Yes").clicked() {
+                            spawn_local(async {
+                                reset_files_indexeddb().await.expect("file reset");
+                            });
+                            self.confirm_reset = None;
+                            self.upload.files = None;
+                        }
+                        if ui.button("No").clicked() {
+                            self.confirm_reset = None;
+                        }
+                    });
+                });
+        }
     }
 }
 
@@ -383,6 +410,8 @@ impl IWApp {
 
             file_upload_promise: None,
             upload: upload_state,
+
+            confirm_reset: None,
         }
     }
 
@@ -448,10 +477,14 @@ impl IWApp {
         }
     }
 
-    fn render_file_upload(&mut self, ui: &mut egui::Ui, icon: &str, label: &str, t: f32) {
+    fn render_file_upload(&mut self, ui: &mut egui::Ui, t: f32) {
         ui.horizontal(|ui| {
             ui.add_space(5.0);
-            ui.label(RichText::new(icon).size(24.0).color(ICON_COLOUR));
+            ui.label(
+                RichText::new(egui_phosphor::regular::UPLOAD_SIMPLE)
+                    .size(24.0)
+                    .color(ICON_COLOUR),
+            );
 
             if t > 0.1 {
                 ui.scope(|ui| {
@@ -459,7 +492,7 @@ impl IWApp {
                     ui.set_clip_rect(ui.available_rect_before_wrap());
                     ui.add_space(10.0);
 
-                    let text = RichText::new(label)
+                    let text = RichText::new("UPLOAD")
                         .strong()
                         .color(egui::Color32::WHITE.linear_multiply(opacity));
 
@@ -472,6 +505,11 @@ impl IWApp {
                                 file_uploads
                             }));
                     }
+
+                    let reset_button = ui.button("RESET");
+                    if reset_button.clicked() {
+                        self.confirm_reset = Some(reset_button.rect);
+                    };
                 });
             }
         });
@@ -699,10 +737,14 @@ fn egui_key_to_event_key(key: &egui::Key) -> &str {
     }
 }
 
-fn render_savegame_download(ui: &mut egui::Ui, icon: &str, t: f32) {
+fn render_savegame_download(ui: &mut egui::Ui, t: f32) {
     ui.horizontal(|ui| {
         ui.add_space(5.0);
-        ui.label(RichText::new(icon).size(24.0).color(ICON_COLOUR));
+        ui.label(
+            RichText::new(egui_phosphor::regular::FLOPPY_DISK)
+                .size(24.0)
+                .color(ICON_COLOUR),
+        );
 
         if t > 0.1 {
             ui.scope(|ui| {
@@ -722,6 +764,16 @@ async fn store_file_indexeddb(file_name: &str, data: Uint8Array) -> Result<(), J
     idb_request_await(&store.put_with_key(&data, &file_name.into())?)
         .await
         .map_err(|_| "idb store failed")?;
+    Ok(())
+}
+
+async fn reset_files_indexeddb() -> Result<(), JsValue> {
+    let db = open_db().await?;
+    let transaction =
+        db.transaction_with_str_and_mode(PLAYER_STORE, web_sys::IdbTransactionMode::Readwrite)?;
+
+    let store = transaction.object_store(PLAYER_STORE)?;
+    store.clear()?;
     Ok(())
 }
 
@@ -775,6 +827,7 @@ async fn open_db() -> Result<web_sys::IdbDatabase, JsValue> {
                         .result()
                         .unwrap(),
                 );
+
                 if !db.object_store_names().contains(PLAYER_STORE) {
                     db.create_object_store(PLAYER_STORE)
                         .expect("created save store");

@@ -1,6 +1,6 @@
 mod app;
 
-use app::{IWApp, UploadState};
+use app::IWApp;
 
 #[cfg(not(feature = "web"))]
 fn main() -> eframe::Result {
@@ -18,7 +18,7 @@ fn main() -> eframe::Result {
     eframe::run_native(
         "eframe template",
         native_options,
-        Box::new(|cc| Ok(Box::new(IWApp::new(cc, UploadState::no_upload())))),
+        Box::new(|cc| Ok(Box::new(IWApp::new(cc, app::UploadState::no_upload())))),
     )
 }
 
