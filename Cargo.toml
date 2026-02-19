@@ -21,7 +21,7 @@ rfd = "0.17.1"
 poll-promise = { version = "0.3.0", features = ["web"] }
 egui-phosphor = "0.11"
 
-iw = { path = "../iron-wolf/", features = ["web"] }
+iron-wolf = { version = "0.1.0", features = ["web"] }
 
 [profile.release]
 opt-level = "s"

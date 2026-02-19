@@ -1576,33 +1576,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "iron-wolf-webplayer"
+name = "iron-wolf"
 version = "0.1.0"
-dependencies = [
- "eframe",
- "egui",
- "egui-phosphor",
- "gloo-net",
- "image",
- "iw",
- "js-sys",
- "log",
- "poll-promise",
- "rfd",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
-]
-
-[[package]]
-name = "itoa"
-version = "1.0.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92ecc6618181def0457392ccd0ee51198e065e016d1d527a7ac1b6dc7c1f09d2"
-
-[[package]]
-name = "iw"
-version = "0.1.0"
+checksum = "912ccb6952129a5604e49309790caee4a50588179f0ee7c9fb793139d181f346"
 dependencies = [
  "cfg-if",
  "console_error_panic_hook",
@@ -1619,6 +1596,31 @@ dependencies = [
  "web-sys",
  "web-time",
 ]
+
+[[package]]
+name = "iron-wolf-webplayer"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "egui",
+ "egui-phosphor",
+ "gloo-net",
+ "image",
+ "iron-wolf",
+ "js-sys",
+ "log",
+ "poll-promise",
+ "rfd",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
+
+[[package]]
+name = "itoa"
+version = "1.0.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "92ecc6618181def0457392ccd0ee51198e065e016d1d527a7ac1b6dc7c1f09d2"
 
 [[package]]
 name = "jni"
