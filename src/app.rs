@@ -176,6 +176,9 @@ pub struct IWApp {
     upload: UploadState,
 
     confirm_reset: Option<Rect>,
+
+    //settings
+    show_frame_rate: bool,
 }
 
 impl eframe::App for IWApp {
@@ -223,66 +226,7 @@ impl eframe::App for IWApp {
 
                 render_savegame_download(ui, t);
                 self.render_file_upload(ui, t);
-                if self.is_expanded {
-                    if let Some(files) = &self.upload.files {
-                        file_upload_status(
-                            ui,
-                            &file_name(AUDIOHED_PREFIX, files.version),
-                            files.audiohed.is_some(),
-                        );
-                        file_upload_status(
-                            ui,
-                            &file_name(AUDIOT_PREFIX, files.version),
-                            files.audiot.is_some(),
-                        );
-                        file_upload_status(
-                            ui,
-                            &file_name(CONFIG_PREFIX, files.version),
-                            files.config.is_some(),
-                        );
-                        file_upload_status(
-                            ui,
-                            &file_name(GAMEMAPS_PREFIX, files.version),
-                            files.gamemaps.is_some(),
-                        );
-                        file_upload_status(
-                            ui,
-                            &file_name(MAPHEAD_PREFIX, files.version),
-                            files.maphead.is_some(),
-                        );
-                        file_upload_status(
-                            ui,
-                            &file_name(VGADICT_PREFIX, files.version),
-                            files.vgadict.is_some(),
-                        );
-                        file_upload_status(
-                            ui,
-                            &file_name(VGAGRAPH_PREFIX, files.version),
-                            files.vgagraph.is_some(),
-                        );
-                        file_upload_status(
-                            ui,
-                            &file_name(VGAHEAD_PREFIX, files.version),
-                            files.vgahead.is_some(),
-                        );
-                        file_upload_status(
-                            ui,
-                            &file_name(VSWAP_PREFIX, files.version),
-                            files.vswap.is_some(),
-                        );
-                    } else {
-                        // shareware is always available
-                        file_upload_status(ui, &file_name(AUDIOHED_PREFIX, 1), true);
-                        file_upload_status(ui, &file_name(AUDIOT_PREFIX, 1), true);
-                        file_upload_status(ui, &file_name(CONFIG_PREFIX, 1), true);
-                        file_upload_status(ui, &file_name(GAMEMAPS_PREFIX, 1), true);
-                        file_upload_status(ui, &file_name(MAPHEAD_PREFIX, 1), true);
-                        file_upload_status(ui, &file_name(VGADICT_PREFIX, 1), true);
-                        file_upload_status(ui, &file_name(VGAGRAPH_PREFIX, 1), true);
-                        file_upload_status(ui, &file_name(VGAHEAD_PREFIX, 1), true);
-                        file_upload_status(ui, &file_name(VSWAP_PREFIX, 1), true);
-                    };
-                }
+                self.render_settings(ui);
 
                 let rect = ui.clip_rect();
                 let painter = ui.painter();
@@ -336,8 +280,11 @@ impl eframe::App for IWApp {
                                 let mut loader = self.upload.create_loader();
                                 let load_shareware = !self.upload.is_complete();
 
+                                let show_frame_rate = self.show_frame_rate;
                                 spawn_local(async move {
-                                    let iw_config = default_iw_config().expect("default config");
+                                    let mut iw_config =
+                                        default_iw_config().expect("default config");
+                                    iw_config.options.show_frame_rate = show_frame_rate;
                                     if load_shareware {
                                         load_shareware_data(&mut loader)
                                             .await
@@ -412,6 +359,8 @@ impl IWApp {
             upload: upload_state,
 
             confirm_reset: None,
+
+            show_frame_rate: false,
         }
     }
 
@@ -513,6 +462,94 @@ impl IWApp {
                 });
             }
         });
+
+        if self.is_expanded {
+            if let Some(files) = &self.upload.files {
+                file_upload_status(
+                    ui,
+                    &file_name(AUDIOHED_PREFIX, files.version),
+                    files.audiohed.is_some(),
+                );
+                file_upload_status(
+                    ui,
+                    &file_name(AUDIOT_PREFIX, files.version),
+                    files.audiot.is_some(),
+                );
+                file_upload_status(
+                    ui,
+                    &file_name(CONFIG_PREFIX, files.version),
+                    files.config.is_some(),
+                );
+                file_upload_status(
+                    ui,
+                    &file_name(GAMEMAPS_PREFIX, files.version),
+                    files.gamemaps.is_some(),
+                );
+                file_upload_status(
+                    ui,
+                    &file_name(MAPHEAD_PREFIX, files.version),
+                    files.maphead.is_some(),
+                );
+                file_upload_status(
+                    ui,
+                    &file_name(VGADICT_PREFIX, files.version),
+                    files.vgadict.is_some(),
+                );
+                file_upload_status(
+                    ui,
+                    &file_name(VGAGRAPH_PREFIX, files.version),
+                    files.vgagraph.is_some(),
+                );
+                file_upload_status(
+                    ui,
+                    &file_name(VGAHEAD_PREFIX, files.version),
+                    files.vgahead.is_some(),
+                );
+                file_upload_status(
+                    ui,
+                    &file_name(VSWAP_PREFIX, files.version),
+                    files.vswap.is_some(),
+                );
+            } else {
+                // shareware is always available
+                file_upload_status(ui, &file_name(AUDIOHED_PREFIX, 1), true);
+                file_upload_status(ui, &file_name(AUDIOT_PREFIX, 1), true);
+                file_upload_status(ui, &file_name(CONFIG_PREFIX, 1), true);
+                file_upload_status(ui, &file_name(GAMEMAPS_PREFIX, 1), true);
+                file_upload_status(ui, &file_name(MAPHEAD_PREFIX, 1), true);
+                file_upload_status(ui, &file_name(VGADICT_PREFIX, 1), true);
+                file_upload_status(ui, &file_name(VGAGRAPH_PREFIX, 1), true);
+                file_upload_status(ui, &file_name(VGAHEAD_PREFIX, 1), true);
+                file_upload_status(ui, &file_name(VSWAP_PREFIX, 1), true);
+            };
+        }
+
+        ui.add_space(15.0);
+    }
+
+    fn render_settings(&mut self, ui: &mut egui::Ui) {
+        ui.horizontal(|ui| {
+            ui.add_space(5.0);
+            ui.label(
+                RichText::new(egui_phosphor::regular::GEAR)
+                    .size(24.0)
+                    .color(ICON_COLOUR),
+            );
+            if self.is_expanded {
+                ui.label(RichText::new("SETTINGS").size(16.0).color(ICON_COLOUR));
+            }
+        });
+
+        if self.is_expanded {
+            ui.horizontal(|ui| {
+                ui.add_space(25.0);
+                ui.checkbox(
+                    &mut self.show_frame_rate,
+                    RichText::new("Show framerate").color(ICON_COLOUR),
+                );
+            });
+        }
+
         ui.add_space(15.0);
     }
 
