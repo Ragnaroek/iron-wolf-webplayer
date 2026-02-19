@@ -224,7 +224,7 @@ impl eframe::App for IWApp {
 
                 ui.add_space(20.0);
 
-                render_savegame_download(ui, t);
+                self.render_savegame_download(ui, t);
                 self.render_file_upload(ui, t);
                 self.render_settings(ui);
 
@@ -426,14 +426,46 @@ impl IWApp {
         }
     }
 
+    fn render_savegame_download(&mut self, ui: &mut egui::Ui, t: f32) {
+        ui.horizontal(|ui| {
+            ui.add_space(5.0);
+            if ui
+                .label(
+                    RichText::new(egui_phosphor::regular::FLOPPY_DISK)
+                        .size(24.0)
+                        .color(ICON_COLOUR),
+                )
+                .clicked()
+            {
+                if !self.is_expanded {
+                    self.is_expanded = true;
+                }
+            };
+
+            if t > 0.1 {
+                ui.scope(|ui| {
+                    // TODO render save-game files for download
+                });
+            }
+        });
+        ui.add_space(15.0);
+    }
+
     fn render_file_upload(&mut self, ui: &mut egui::Ui, t: f32) {
         ui.horizontal(|ui| {
             ui.add_space(5.0);
-            ui.label(
-                RichText::new(egui_phosphor::regular::UPLOAD_SIMPLE)
-                    .size(24.0)
-                    .color(ICON_COLOUR),
-            );
+            if ui
+                .label(
+                    RichText::new(egui_phosphor::regular::UPLOAD_SIMPLE)
+                        .size(24.0)
+                        .color(ICON_COLOUR),
+                )
+                .clicked()
+            {
+                if !self.is_expanded {
+                    self.is_expanded = true;
+                }
+            };
 
             if t > 0.1 {
                 ui.scope(|ui| {
@@ -530,11 +562,18 @@ impl IWApp {
     fn render_settings(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             ui.add_space(5.0);
-            ui.label(
-                RichText::new(egui_phosphor::regular::GEAR)
-                    .size(24.0)
-                    .color(ICON_COLOUR),
-            );
+            if ui
+                .label(
+                    RichText::new(egui_phosphor::regular::GEAR)
+                        .size(24.0)
+                        .color(ICON_COLOUR),
+                )
+                .clicked()
+            {
+                if !self.is_expanded {
+                    self.is_expanded = true;
+                }
+            };
             if self.is_expanded {
                 ui.label(RichText::new("SETTINGS").size(16.0).color(ICON_COLOUR));
             }
@@ -772,24 +811,6 @@ fn egui_key_to_event_key(key: &egui::Key) -> &str {
         egui::Key::Space => " ",
         other => other.name(),
     }
-}
-
-fn render_savegame_download(ui: &mut egui::Ui, t: f32) {
-    ui.horizontal(|ui| {
-        ui.add_space(5.0);
-        ui.label(
-            RichText::new(egui_phosphor::regular::FLOPPY_DISK)
-                .size(24.0)
-                .color(ICON_COLOUR),
-        );
-
-        if t > 0.1 {
-            ui.scope(|ui| {
-                // TODO render save-game files for download
-            });
-        }
-    });
-    ui.add_space(15.0);
 }
 
 async fn store_file_indexeddb(file_name: &str, data: Uint8Array) -> Result<(), JsValue> {
