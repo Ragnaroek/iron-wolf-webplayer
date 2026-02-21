@@ -120,22 +120,64 @@
             ctx.imageSmoothingEnabled = false;
             ctx.mozImageSmoothingEnabled = false;
 
-            const backgroundImage = new Image();
-            backgroundImage.src = "splash_screen.png";
+            const splash1 = new Image();
+            splash1.src = "splash1.png";
 
-            backgroundImage.onload = function () {
-                ctx.drawImage(
-                    backgroundImage,
-                    0,
-                    0,
-                    canvas.width,
-                    canvas.height,
-                );
+            const splash2 = new Image();
+            splash2.src = "splash2.png";
+
+            const splash3 = new Image();
+            splash3.src = "splash3.png";
+
+            var rnd = function () {
+                return Math.floor(Math.random() * (1000 - 300 + 1)) + 300;
             };
+            var ix = 1;
+            var tic = rnd();
+            var t = 0;
+            setInterval(() => {
+                if (t >= tic) {
+                    if (ix == 1) {
+                        ctx.drawImage(
+                            splash1,
+                            0,
+                            0,
+                            canvas.width,
+                            canvas.height,
+                        );
+                    } else if (ix == 2) {
+                        ctx.drawImage(
+                            splash2,
+                            0,
+                            0,
+                            canvas.width,
+                            canvas.height,
+                        );
+                    } else if (ix == 3) {
+                        ctx.drawImage(
+                            splash3,
+                            0,
+                            0,
+                            canvas.width,
+                            canvas.height,
+                        );
+                    }
+
+                    if (ix == 3) {
+                        ix = 1;
+                    } else {
+                        ix += 1;
+                    }
+
+                    tic = rnd();
+                    t = 0;
+                }
+
+                t += 100;
+            }, 100);
         </script>
 
         <script>
-            // We disable caching during development so that we always view the latest version.
             if (
                 "serviceWorker" in navigator &&
                 window.location.hash !== "#dev"
