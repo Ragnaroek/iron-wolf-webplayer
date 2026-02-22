@@ -4,7 +4,7 @@ use iw::config::default_iw_config;
 use iw::loader::Loader;
 use iw::start::iw_start;
 use iw::web::load_shareware_data;
-use js_sys::Uint8Array;
+use js_sys::{Reflect, Uint8Array};
 use poll_promise::Promise;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
@@ -270,6 +270,13 @@ impl eframe::App for IWApp {
                                 let window = window().expect("No window object found");
                                 let document = window.document().expect("No document object found");
 
+                                Reflect::set(
+                                    &window,
+                                    &JsValue::from_str("iw_playing"),
+                                    &true.into(),
+                                )
+                                .expect("mark iw as playing");
+
                                 let element = document
                                     .get_element_by_id("vga")
                                     .expect("Element not found");
@@ -290,6 +297,7 @@ impl eframe::App for IWApp {
                                             .await
                                             .expect("load shareware data");
                                     }
+
                                     iw_start(loader, iw_config).expect("iw start");
                                 });
                             }

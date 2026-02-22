@@ -135,7 +135,10 @@
             var ix = 1;
             var tic = rnd();
             var t = 0;
-            setInterval(() => {
+            const timer = setInterval(() => {
+                if (window.iw_playing) {
+                    clearInterval(timer);
+                }
                 if (t >= tic) {
                     if (ix == 1) {
                         ctx.drawImage(
