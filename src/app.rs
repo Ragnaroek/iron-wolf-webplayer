@@ -1,4 +1,5 @@
 use eframe::egui;
+use egui::FontDefinitions;
 use egui::{Color32, Frame, Pos2, Rect, RichText, Stroke};
 use iw::config::default_iw_config;
 use iw::loader::Loader;
@@ -182,12 +183,12 @@ pub struct IWApp {
 }
 
 impl eframe::App for IWApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.handle_file_upload();
-        self.forward_key_events(ctx);
+        self.forward_key_events(ui);
 
         let animation_speed = 0.25;
-        let t = ctx.animate_bool_with_time(
+        let t = ui.animate_bool_with_time(
             egui::Id::new("sidebar_anim"),
             self.is_expanded,
             animation_speed,
@@ -196,9 +197,9 @@ impl eframe::App for IWApp {
         let max_width = 280.0;
         let current_width = MENUE_MIN_WDITH + (max_width - MENUE_MIN_WDITH) * t;
 
-        egui::SidePanel::right("wolf_sidebar")
+        egui::Panel::right("wolf_sidebar")
             .resizable(false)
-            .exact_width(current_width)
+            .exact_size(current_width)
             .frame(
                 egui::Frame::NONE
                     .fill(egui::Color32::from_rgb(0x53, 0, 0))
@@ -208,7 +209,7 @@ impl eframe::App for IWApp {
                         egui::Color32::from_rgb(0x70, 0, 0),
                     )),
             )
-            .show(ctx, |ui| {
+            .show_inside(ui, |ui| {
                 ui.vertical_centered(|ui| {
                     let icon = if self.is_expanded { "▶" } else { "◀   " };
                     if ui
@@ -250,7 +251,7 @@ impl eframe::App for IWApp {
 
         egui::CentralPanel::default()
             .frame(Frame::NONE)
-            .show(ctx, |ui| {
+            .show_inside(ui, |ui| {
                 ui.painter()
                     .rect_filled(ui.max_rect(), 0.0, BACKGROUND_COLOR);
 
@@ -331,7 +332,7 @@ impl eframe::App for IWApp {
                 .resizable(false)
                 .pivot(egui::Align2::CENTER_CENTER)
                 .fixed_pos(dialog_pos)
-                .show(ctx, |ui| {
+                .show(ui, |ui| {
                     ui.label("Delete all uploaded data and reset to shareware?");
 
                     ui.horizontal(|ui| {
@@ -353,7 +354,7 @@ impl eframe::App for IWApp {
 
 impl IWApp {
     pub fn new(cc: &eframe::CreationContext<'_>, upload_state: UploadState) -> IWApp {
-        let mut fonts = egui::FontDefinitions::default();
+        let mut fonts = FontDefinitions::default();
         egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
         cc.egui_ctx.set_fonts(fonts);
 
@@ -451,7 +452,7 @@ impl IWApp {
             };
 
             if t > 0.1 {
-                ui.scope(|ui| {
+                ui.scope(|_ui| {
                     // TODO render save-game files for download
                 });
             }
@@ -600,10 +601,10 @@ impl IWApp {
         ui.add_space(15.0);
     }
 
-    fn forward_key_events(&self, ctx: &egui::Context) {
+    fn forward_key_events(&self, ui: &egui::Ui) {
         if let Some(window) = window() {
             if let Some(document) = window.document() {
-                let input = ctx.input(|i| i.clone());
+                let input = ui.input(|i| i.clone());
                 for event in &input.events {
                     if let egui::Event::Key { key, pressed, .. } = event {
                         let init = web_sys::KeyboardEventInit::new();
