@@ -299,8 +299,8 @@ impl eframe::App for IWApp {
                                 }
 
                                 let mut loader = self.upload.create_loader();
-                                let need_load_shareware =
-                                    self.upload.version() == 1 && !self.upload.is_complete();
+                                let need_load_shareware = self.upload.version() == 0
+                                    || (self.upload.version() == 1 && !self.upload.is_complete());
                                 let show_frame_rate = self.show_frame_rate;
                                 spawn_local(async move {
                                     let mut iw_config =
