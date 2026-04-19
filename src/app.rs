@@ -4,7 +4,7 @@ use egui::{Color32, Frame, Pos2, Rect, RichText, Stroke};
 use iw::config::default_iw_config;
 use iw::loader::Loader;
 use iw::start::iw_start;
-use iw::web::load_shareware_data;
+use iw::web::load_missing_shareware_data;
 use js_sys::{Reflect, Uint8Array};
 use poll_promise::Promise;
 use wasm_bindgen::prelude::*;
@@ -18,6 +18,8 @@ const CONTROL_KEY: &str = "Control";
 const KEYUP_DELAY_MS: i32 = 15;
 const PLAYER_DB_NAME: &str = "iron-wolf-player";
 const PLAYER_STORE: &str = "files";
+const IW_DB_NAME: &str = "iron-wolf";
+const IW_FILE_STORE: &str = "files";
 
 // files
 const AUDIOHED_PREFIX: &str = "AUDIOHED.WL";
@@ -48,14 +50,25 @@ impl UploadState {
         self.files.as_ref().is_some_and(|f| f.is_complete())
     }
 
+    fn version(&self) -> usize {
+        self.files.as_ref().map_or_else(|| 0, |f| f.version)
+    }
+
     fn create_loader(&self) -> Loader {
         if let Some(files) = &self.files {
             let variant = match files.version {
+                1 => &iw::assets::W3D1,
                 3 => &iw::assets::W3D3,
                 6 => &iw::assets::W3D6,
                 _ => panic!("unknow version: {}", files.version),
             };
-            let mut loader = Loader::new_empty(variant);
+            let mut loader = if files.version == 1 {
+                // Take shareware files as default on override
+                // with file if supplied/found in upload
+                Loader::new_shareware()
+            } else {
+                Loader::new_empty(variant)
+            };
 
             if let Some(data) = &files.vgadict {
                 let file_name = file_name(VGADICT_PREFIX, files.version);
@@ -286,15 +299,15 @@ impl eframe::App for IWApp {
                                 }
 
                                 let mut loader = self.upload.create_loader();
-                                let load_shareware = !self.upload.is_complete();
-
+                                let need_load_shareware =
+                                    self.upload.version() == 1 && !self.upload.is_complete();
                                 let show_frame_rate = self.show_frame_rate;
                                 spawn_local(async move {
                                     let mut iw_config =
                                         default_iw_config().expect("default config");
                                     iw_config.options.show_frame_rate = show_frame_rate;
-                                    if load_shareware {
-                                        load_shareware_data(&mut loader)
+                                    if need_load_shareware {
+                                        load_missing_shareware_data(&mut loader)
                                             .await
                                             .expect("load shareware data");
                                     }
@@ -645,74 +658,95 @@ pub async fn open_files() -> Vec<FileUpload> {
 
 pub async fn load_upload_state() -> UploadState {
     let mut state = UploadStateFiles::new_empty(0);
-    let mut v = 1;
-    let (audiohed, v_l) = load_file(AUDIOHED_PREFIX).await;
+    let mut v = 0;
+    let (audiohed, v_l) = load_file(AUDIOHED_PREFIX, false).await;
     if v_l >= v {
         v = v_l;
         state.audiohed = audiohed;
     }
-    let (gamemaps, v_l) = load_file(GAMEMAPS_PREFIX).await;
+    let (gamemaps, v_l) = load_file(GAMEMAPS_PREFIX, false).await;
     if v_l >= v {
         v = v_l;
         state.gamemaps = gamemaps;
     }
-    let (audiot, v_l) = load_file(AUDIOT_PREFIX).await;
+    let (audiot, v_l) = load_file(AUDIOT_PREFIX, false).await;
     if v_l >= v {
         v = v_l;
         state.audiot = audiot;
     }
-    let (config, v_l) = load_file(CONFIG_PREFIX).await;
+    let (config, v_l) = load_file(CONFIG_PREFIX, true).await;
     if v_l >= v {
         v = v_l;
         state.config = config;
     }
-    let (maphead, v_l) = load_file(MAPHEAD_PREFIX).await;
+    let (maphead, v_l) = load_file(MAPHEAD_PREFIX, false).await;
     if v_l >= v {
         v = v_l;
         state.maphead = maphead;
     }
-    let (vgadict, v_l) = load_file(VGADICT_PREFIX).await;
+    let (vgadict, v_l) = load_file(VGADICT_PREFIX, false).await;
     if v_l >= v {
         v = v_l;
         state.vgadict = vgadict;
     }
-    let (vgagraph, v_l) = load_file(VGAGRAPH_PREFIX).await;
+    let (vgagraph, v_l) = load_file(VGAGRAPH_PREFIX, false).await;
     if v_l >= v {
         v = v_l;
         state.vgagraph = vgagraph;
     }
-    let (vgahead, v_l) = load_file(VGAHEAD_PREFIX).await;
+    let (vgahead, v_l) = load_file(VGAHEAD_PREFIX, false).await;
     if v_l >= v {
         v = v_l;
         state.vgahead = vgahead;
     }
-    let (vswap, v_l) = load_file(VSWAP_PREFIX).await;
+    let (vswap, v_l) = load_file(VSWAP_PREFIX, false).await;
     if v_l >= v {
         v = v_l;
         state.vswap = vswap;
     }
 
-    state.version = v;
-    if v > 1 {
-        return UploadState::with_files(state);
+    if v == 0 {
+        UploadState::no_upload()
+    } else {
+        state.version = v;
+        UploadState::with_files(state)
     }
-
-    // fall back to shareware version
-    UploadState::no_upload()
 }
 
-async fn load_file(file_prefix: &str) -> (Option<Uint8Array>, usize) {
+async fn load_file(file_prefix: &str, check_iw: bool) -> (Option<Uint8Array>, usize) {
+    if check_iw {
+        let (data, version) = load_file_from_store(file_prefix, IW_DB_NAME, IW_FILE_STORE).await;
+        if version != 0 {
+            return (data, version);
+        }
+    }
+
+    load_file_from_store(file_prefix, PLAYER_DB_NAME, PLAYER_STORE).await
+}
+
+async fn load_file_from_store(
+    file_prefix: &str,
+    db: &str,
+    store: &str,
+) -> (Option<Uint8Array>, usize) {
     let file = &file_name(file_prefix, 6);
-    let file_6 = load_file_indexeddb(&file).await;
+    let file_6 = load_file_indexeddb(&file, db, store).await;
     if file_6.is_ok() {
         return (Some(file_6.unwrap()), 6);
     }
 
     // try WL3
     let file = &file_name(file_prefix, 3);
-    let file_3 = load_file_indexeddb(&file).await;
+    let file_3 = load_file_indexeddb(&file, db, store).await;
     if file_3.is_ok() {
         return (Some(file_3.unwrap()), 3);
+    }
+
+    // try WL1
+    let file = &file_name(file_prefix, 1);
+    let file_1 = load_file_indexeddb(&file, db, store).await;
+    if file_1.is_ok() {
+        return (Some(file_1.unwrap()), 1);
     }
 
     (None, 0)
@@ -822,8 +856,10 @@ fn egui_key_to_event_key(key: &egui::Key) -> &str {
     }
 }
 
+/// Always stores files in the PLAYER store as only IW should write
+/// files in the IW_DB.
 async fn store_file_indexeddb(file_name: &str, data: Uint8Array) -> Result<(), JsValue> {
-    let db = open_db().await?;
+    let db = open_db(PLAYER_DB_NAME, PLAYER_STORE).await?;
     let transaction =
         db.transaction_with_str_and_mode(PLAYER_STORE, web_sys::IdbTransactionMode::Readwrite)?;
 
@@ -835,7 +871,7 @@ async fn store_file_indexeddb(file_name: &str, data: Uint8Array) -> Result<(), J
 }
 
 async fn reset_files_indexeddb() -> Result<(), JsValue> {
-    let db = open_db().await?;
+    let db = open_db(PLAYER_DB_NAME, PLAYER_STORE).await?;
     let transaction =
         db.transaction_with_str_and_mode(PLAYER_STORE, web_sys::IdbTransactionMode::Readwrite)?;
 
@@ -844,12 +880,16 @@ async fn reset_files_indexeddb() -> Result<(), JsValue> {
     Ok(())
 }
 
-async fn load_file_indexeddb(file_name: &str) -> Result<Uint8Array, JsValue> {
-    let db = open_db().await?;
+async fn load_file_indexeddb(
+    file_name: &str,
+    db: &str,
+    store: &str,
+) -> Result<Uint8Array, JsValue> {
+    let db = open_db(db, store).await?;
     let transaction =
-        db.transaction_with_str_and_mode(PLAYER_STORE, web_sys::IdbTransactionMode::Readwrite)?;
+        db.transaction_with_str_and_mode(store, web_sys::IdbTransactionMode::Readwrite)?;
+    let store = transaction.object_store(store)?;
 
-    let store = transaction.object_store(PLAYER_STORE)?;
     let value = idb_request_await(&store.get(&file_name.into())?)
         .await
         .map_err(|_| "idb load failed")?;
@@ -861,11 +901,11 @@ async fn load_file_indexeddb(file_name: &str) -> Result<Uint8Array, JsValue> {
     }
 }
 
-async fn open_db() -> Result<web_sys::IdbDatabase, JsValue> {
+async fn open_db(db: &str, store: &str) -> Result<web_sys::IdbDatabase, JsValue> {
     let window = web_sys::window().expect("global window access");
     let factory = window.indexed_db().map_err(|e| e)?;
     if let Some(factory) = factory {
-        let open_request = factory.open_with_u32(PLAYER_DB_NAME, 2)?;
+        let open_request = factory.open(db)?;
 
         let db_promise = js_sys::Promise::new(&mut |resolve, reject| {
             let onsuccess = Closure::wrap(Box::new(move |event: web_sys::Event| {
@@ -895,9 +935,8 @@ async fn open_db() -> Result<web_sys::IdbDatabase, JsValue> {
                         .unwrap(),
                 );
 
-                if !db.object_store_names().contains(PLAYER_STORE) {
-                    db.create_object_store(PLAYER_STORE)
-                        .expect("created save store");
+                if !db.object_store_names().contains(store) {
+                    db.create_object_store(store).expect("created store");
                 }
             }) as Box<dyn FnMut(_)>);
 

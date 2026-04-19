@@ -1582,9 +1582,9 @@ dependencies = [
 
 [[package]]
 name = "iron-wolf"
-version = "0.10.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "faa87023eab31f48a219e54d0e2b593f275ad386b696408feb21dedb790c42b4"
+checksum = "9b63d09e6a8e69acac63b110f039765825c3028d52e19da1070a71bd8a717f33"
 dependencies = [
  "cfg-if",
  "console_error_panic_hook",
